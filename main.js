@@ -268,7 +268,6 @@ function CreateSurfaceData()
             normalsList.push(res[0],res[1],res[2]);
             texCoordList.push(i/(2 * b), j/360);
           
-
             x = getX(i + 0.1, j);
             y = getY(i + 0.1, j);
             z = getZ(i + 0.1);
@@ -299,23 +298,20 @@ function createTexture(){
     let texture = gl.createTexture();
     
     gl.bindTexture(gl.TEXTURE_2D, texture);
-
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE, 
-                  new Uint8Array([255,255,255,255]));
 
-    let img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Sciences_exactes.svg/256px-Sciences_exactes.svg.png';
-    img.addEventListener('load', function() {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = 'https://raw.githubusercontent.com/MykolaFurmanchuk/VGGI_Practic/cgw/texture.jpg';
+    img.onload = () => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE, img);
-        draw();
-    });
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        draw()
+    }
 }
 
 /* Initialize the WebGL context. Called from init() */
