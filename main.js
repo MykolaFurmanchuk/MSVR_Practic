@@ -11,6 +11,9 @@ let pointLocationI = 0;
 let pointLocationJ = 0;
 let ScaleValue = 0.0;
 let InputCounter = 0.0;
+let video, videoTexture, track,texture;
+let bg_surface;
+
 function deg2rad(angle) {
     return angle * Math.PI / 180;
 }
@@ -20,26 +23,30 @@ function Model(name) {
     this.iVertexBuffer = gl.createBuffer();
     this.iNormalBuffer = gl.createBuffer();
     this.iTexBuffer    = gl.createBuffer();
-    this.iPointBuffer  = gl.createBuffer();
     this.count = 0;
 
-    this.BufferData = function(vertices,normals,texCoord) {
+
+
+    this.BufferData = function(vertices,normals) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
         
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoord), gl.STATIC_DRAW);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iPointBuffer)
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0,0]), gl.DYNAMIC_DRAW);
-
-        
+        // gl.bindBuffer(gl.ARRAY_BUFFER, this.iTexBuffer);
+        // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoord), gl.STREAM_DRAW);
 
         this.count = vertices.length/3;
     }
+
+    this.TextureBufferData = function(texCoord){
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoord), gl.STREAM_DRAW);
+        this.count = texCoord.length/2;
+    }
+
+
 
     this.Draw = function() {
         gl.uniform1i(shProgram.iDrawPoint, false);
@@ -57,9 +64,6 @@ function Model(name) {
 
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
-
-        gl.uniform1i(shProgram.iDrawPoint, true);
-        gl.drawArrays(gl.POINTS, 0, 1);
     }
 }
 
@@ -128,12 +132,37 @@ function draw() {
     gl.uniform3fv(shProgram.viewWorldPositionLocation, [100,150,200]);
 
     gl.uniform1i(shProgram.Itmu, 0);
+    gl.enable(gl.TEXTURE_2D);
+    gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      video
+    );
+    bg_surface.Draw();
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.uniform3fv(shProgram.iPointWorldLocation, getPointLocation());
     gl.uniform1f(shProgram.iScaleValue,  ScaleValue);
     gl.uniform2fv(shProgram.iPointLocation_u_v,[pointLocationI / (2 * b), pointLocationJ / 360]);
+
+    
     surface.Draw();
 }
 
+function getWebcam() {
+    navigator.getUserMedia({ video: true, audio: false }, function (stream) {
+      video.srcObject = stream;
+      track = stream.getTracks()[0];
+    }, function (e) {
+      console.error('Rejected!', e);
+    });
+  }
 
 window.addEventListener("keydown", (event) =>{  
     switch (event.key) {
@@ -178,29 +207,7 @@ function ProcessSubValueScale()
     ScaleValue -= 0.2
     draw();
 }
-function ProcessPressW()
-{
-    pointLocationJ -= 1.0;
-    draw();
-}
 
-function ProcessPressS()
-{
-    pointLocationJ += 1.0;
-    draw();
-}
-
-function ProcessPressA()
-{
-    pointLocationI -= 0.1;
-    draw();
-}
-
-function ProcessPressD()
-{
-    pointLocationI += 0.1;
-    draw();
-}
 function drawParabolaL()
 {
     InputCounter -= 0.05;
@@ -268,6 +275,7 @@ function CreateSurfaceData()
             normalsList.push(res[0],res[1],res[2]);
             texCoordList.push(i/(2 * b), j/360);
           
+
             x = getX(i + 0.1, j);
             y = getY(i + 0.1, j);
             z = getZ(i + 0.1);
@@ -294,15 +302,25 @@ function getPointLocation(){
     return pointList;
 }
 
-function createTexture(){
+function createWebCamTexture(){
+    videoTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+    
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    return videoTexture;
+}
+
+function createTextureImg(){
     let texture = gl.createTexture();
     
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -342,9 +360,22 @@ function initGL() {
     shProgram.iPointLocation_u_v                = gl.getUniformLocation(prog,"UserPointLocation");
     surface = new Model('Surface');
     let surfaceData = CreateSurfaceData()
-    surface.BufferData(surfaceData[0],surfaceData[1],surfaceData[2]);
+    surface.BufferData(surfaceData[0],surfaceData[1]);
+    surface.TextureBufferData(surfaceData[2]);
 
-    //createTexture();
+    video = document.createElement('video');
+    video.setAttribute('autoplay', true);
+    window.vid = video;
+    
+    
+    createTextureImg();
+    getWebcam();
+    createWebCamTexture();
+    
+
+    bg_surface = new Model("Background");
+    bg_surface.BufferData([0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0]);
+    bg_surface.TextureBufferData([0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1])
 
     gl.enable(gl.DEPTH_TEST);
 }
@@ -410,5 +441,12 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
 
-    createTexture();
+    constantUpdate()
+    draw();
+    //createTextureImg();
 }
+
+function constantUpdate() {
+    draw();
+    window.requestAnimationFrame(constantUpdate)
+  }
