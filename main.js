@@ -11,8 +11,14 @@ let pointLocationI = 0;
 let pointLocationJ = 0;
 let ScaleValue = 0.0;
 let InputCounter = 0.0;
-let video, videoTexture, track,texture;
-let bg_surface;
+let video;
+let videoTexture;
+let stereoCamera;
+let track;
+let texture;
+let CanvasWidth;
+let CanvasHeight;
+let BackgroundVideoModel;
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -25,17 +31,12 @@ function Model(name) {
     this.iTexBuffer    = gl.createBuffer();
     this.count = 0;
 
-
-
     this.BufferData = function(vertices,normals) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
         
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
-
-        // gl.bindBuffer(gl.ARRAY_BUFFER, this.iTexBuffer);
-        // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoord), gl.STREAM_DRAW);
 
         this.count = vertices.length/3;
     }
@@ -54,9 +55,6 @@ function Model(name) {
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribNormal, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribNormal);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iTexBuffer);
         gl.vertexAttribPointer(shProgram.itexCoordLocation, 2, gl.FLOAT, false, 0, 0);
@@ -77,22 +75,13 @@ function ShaderProgram(name, program) {
     // Location of the attribute variable in the shader program.
     this.iAttribVertex = -1;
     this.iAttribNormal = -1;
-    // Location of the uniform specifying a color for the primitive.
-    this.iColor = -1;
+
+
     // Location of the uniform matrix representing the combined transformation.
     this.iModelViewProjectionMatrix = -1;
 
-    this.iWorldInverseTransposeLocation =  -1;
-    this.iLightWorldPositionLocation = -1;
-    this.iWorldLocation = -1;
-    this.viewWorldPositionLocation = -1;
-     
-    this.ITMU = -1;
+    this.iTexture  = -1;
     this.itexCoordLocation = -1;
-    this.iPointWorldLocation = -1;
-    this.iDrawPoint = -1;
-    this.iScaleValue = -1;
-    this.iPointLocation_u_v = -1;
 
     this.Use = function() {
         gl.useProgram(this.prog);
@@ -104,56 +93,61 @@ function ShaderProgram(name, program) {
  * (Note that the use of the above drawPrimitive function is not an efficient
  * way to draw with WebGL.  Here, the geometry is so simple that it doesn't matter.)
  */
-function draw() { 
-    gl.clearColor(0,0,0,1);
+
+function draw() {
+    gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    /* Set the values of the projection transformation */
-    let projection = m4.perspective(Math.PI/8, 1, 8, 12); 
-    
-    /* Get the view matrix from the SimpleRotator object.*/
-    let modelView = spaceball.getViewMatrix();
 
-    let rotateToPointZero = m4.axisRotation([0.5,0.5,0.5], 0.7);
-    let WorldMatrix = m4.translation(0,0,-10);
-
-    let matAccum0 = m4.multiply(rotateToPointZero, modelView );
-    let matAccum1 = m4.multiply(WorldMatrix, matAccum0 );
-        
-
-    let modelViewProjection = m4.multiply(projection, matAccum1 );
-
-    let worldInverseMatrix = m4.inverse(matAccum1);
-    let worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
-
-    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
-    gl.uniformMatrix4fv(shProgram.iWorldInverseTransposeLocation, false, worldInverseTransposeMatrix);
-    gl.uniformMatrix4fv(shProgram.iWorldLocation, false, matAccum1);
-    gl.uniform3fv(shProgram.iLightWorldPositionLocation, getCoordParabola() );
-    gl.uniform3fv(shProgram.viewWorldPositionLocation, [100,150,200]);
-
-    gl.uniform1i(shProgram.Itmu, 0);
-    gl.enable(gl.TEXTURE_2D);
     gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      video
-    );
-    bg_surface.Draw();
-    gl.clear(gl.DEPTH_BUFFER_BIT);
-
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.clear(gl.DEPTH_BUFFER_BIT);
-    gl.uniform3fv(shProgram.iPointWorldLocation, getPointLocation());
-    gl.uniform1f(shProgram.iScaleValue,  ScaleValue);
-    gl.uniform2fv(shProgram.iPointLocation_u_v,[pointLocationI / (2 * b), pointLocationJ / 360]);
-
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
     
+    let ViewMatrix = m4.translation(0, 0, 0);
+    let projection = m4.orthographic(-CanvasWidth / 2.0, CanvasWidth / 2.0, -CanvasHeight / 2.0, CanvasHeight / 2.0, 1.0, 20000);
+
+    let WorldViewMatrix = m4.multiply(m4.translation(0, 0, -100), ViewMatrix);
+    let ModelViewProjection = m4.multiply(projection, WorldViewMatrix);
+
+    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, ModelViewProjection );
+    
+    gl.uniform1i(shProgram.iTexture, 0);
+
+    BackgroundVideoModel.Draw();
+
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    stereoCamera.ApplyLeftFrustum();
+    gl.colorMask(true, false, false, false);
+    DrawSurface();
+
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    stereoCamera.ApplyRightFrustum();
+    gl.colorMask(false, true, true, false);
+    DrawSurface();
+    gl.colorMask(true, true, true, true);
+}
+
+function DrawSurface() {
+    let modelView = spaceball.getViewMatrix();
+    let translateToPointZero = m4.translation(0, 0, 0);
+    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, m4.multiply(stereoCamera.mModelViewMatrix, m4.multiply(m4.multiply(stereoCamera.mProjectionMatrix, translateToPointZero), modelView)));
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(shProgram.iTexture, 0);
     surface.Draw();
 }
+
+function CreateBackgroundData()
+{
+    let vertexList = [-CanvasWidth / 2.0, -CanvasHeight / 2.0, 0,
+                        -CanvasWidth / 2.0, CanvasHeight / 2.0, 0,
+                        CanvasWidth / 2.0, CanvasHeight / 2.0, 0,
+                        -CanvasWidth / 2.0, -CanvasHeight / 2.0, 0,
+                        CanvasWidth / 2.0, CanvasHeight / 2.0, 0,
+                        CanvasWidth / 2.0, -CanvasHeight / 2.0, 0];
+    let normalsList = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1];
+    let textCoords = [1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1];
+
+    return [vertexList, normalsList, textCoords];
+}
+
 
 function getWebcam() {
     navigator.getUserMedia({ video: true, audio: false }, function (stream) {
@@ -302,36 +296,116 @@ function getPointLocation(){
     return pointList;
 }
 
+function StereoCamera(
+    Convergence,
+    EyeSeparation,
+    AspectRatio,
+    FOV,
+    NearClippingDistance,
+    FarClippingDistance
+  ) {
+    this.mConvergence = Convergence;
+    this.mEyeSeparation = EyeSeparation;
+    this.mAspectRatio = AspectRatio;
+    this.mFOV = FOV;
+    this.mNearClippingDistance = NearClippingDistance;
+    this.mFarClippingDistance = FarClippingDistance;
+  
+    this.mProjectionMatrix = null;
+    this.mModelViewMatrix = null;
+  
+    this.ApplyLeftFrustum = function () {
+      let top, bottom, left, right;
+      top = this.mNearClippingDistance * Math.tan(this.mFOV / 2);
+      bottom = -top;
+  
+      let a = this.mAspectRatio * Math.tan(this.mFOV / 2) * this.mConvergence;
+      let b = a - this.mEyeSeparation / 2;
+      let c = a + this.mEyeSeparation / 2;
+  
+      left = (-b * this.mNearClippingDistance) / this.mConvergence;
+      right = (c * this.mNearClippingDistance) / this.mConvergence;
+  
+      // Set the Projection Matrix
+      this.mProjectionMatrix = m4.orthographic(
+        left,
+        right,
+        bottom,
+        top,
+        this.mNearClippingDistance,
+        this.mFarClippingDistance
+      );
+  
+      // Displace the world to right
+      this.mModelViewMatrix = m4.translation(
+        this.mEyeSeparation / 2,
+        0.0,
+        0.0
+      );
+    };
+  
+    this.ApplyRightFrustum = function () {
+      let top, bottom, left, right;
+      top = this.mNearClippingDistance * Math.tan(this.mFOV / 2);
+      bottom = -top;
+  
+      let a = this.mAspectRatio * Math.tan(this.mFOV / 2) * this.mConvergence;
+      let b = a - this.mEyeSeparation / 2;
+      let c = a + this.mEyeSeparation / 2;
+  
+      left = (-c * this.mNearClippingDistance) / this.mConvergence;
+      right = (b * this.mNearClippingDistance) / this.mConvergence;
+  
+      // Set the Projection Matrix
+      this.mProjectionMatrix = m4.orthographic(
+        left,
+        right,
+        bottom,
+        top,
+        this.mNearClippingDistance,
+        this.mFarClippingDistance
+      );
+  
+      // Displace the world to left
+      this.mModelViewMatrix = m4.translation(
+        -this.mEyeSeparation / 2,
+        0.0,
+        0.0
+      );
+    };
+  }
+  
+
 function createWebCamTexture(){
     videoTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-    
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    return videoTexture;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
 
 function createTextureImg(){
-    let texture = gl.createTexture();
-    
+    texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+ 
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+              new Uint8Array([0, 0, 255, 255]));
+ 
     const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = 'https://raw.githubusercontent.com/MykolaFurmanchuk/VGGI_Practic/cgw/texture.jpg';
+    img.crossOrigin = "anonymous"
+    img.src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Sciences_exactes.svg/256px-Sciences_exactes.svg.png';
     img.onload = () => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-        draw()
-    }
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, img);
+        draw();
+    };
 }
-
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
     let prog = createProgram( gl, vertexShaderSource, fragmentShaderSource );
@@ -341,43 +415,19 @@ function initGL() {
 
     shProgram.iAttribVertex                     = gl.getAttribLocation(prog, "vertex");
     shProgram.iModelViewProjectionMatrix        = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
-    shProgram.iColor                            = gl.getUniformLocation(prog, "color");
-    
-    shProgram.iAttribNormal                     = gl.getAttribLocation(prog,"normals");
 
-    shProgram.iWorldInverseTransposeLocation    = gl.getUniformLocation(prog, "worldInverseTranspose");
-    shProgram.iLightWorldPositionLocation       = gl.getUniformLocation(prog, "lightWorldPosition");
-    shProgram.iWorldLocation                    = gl.getUniformLocation(prog, "world");
-    shProgram.viewWorldPositionLocation         = gl.getUniformLocation(prog, "viewWorldPosition");
-    
-    shProgram.Itmu                              = gl.getUniformLocation(prog, "tmu");//u_tex->textureLocation
+    shProgram.iTexture                          = gl.getUniformLocation(prog, "tmu");//u_tex->textureLocation
     shProgram.itexCoordLocation                 = gl.getAttribLocation(prog, "texCoordLocation")//a_tex->texcoordLocation
 
-    shProgram.iDrawPoint                        = gl.getUniformLocation(prog,"DrawPoint");
-
-    shProgram.iPointWorldLocation               = gl.getUniformLocation(prog,"PointWorldLocation");
-    shProgram.iScaleValue                       = gl.getUniformLocation(prog,"fScaleValue");
-    shProgram.iPointLocation_u_v                = gl.getUniformLocation(prog,"UserPointLocation");
     surface = new Model('Surface');
     let surfaceData = CreateSurfaceData()
     surface.BufferData(surfaceData[0],surfaceData[1]);
     surface.TextureBufferData(surfaceData[2]);
 
-    video = document.createElement('video');
-    video.setAttribute('autoplay', true);
-    window.vid = video;
-    
-    
-    createTextureImg();
-    getWebcam();
-    createWebCamTexture();
-    
-
-    bg_surface = new Model("Background");
-    bg_surface.BufferData([0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0]);
-    bg_surface.TextureBufferData([0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1])
-
-    gl.enable(gl.DEPTH_TEST);
+    BackgroundVideoModel = new Model('Camera');
+    let BackgroundData = CreateBackgroundData();
+    BackgroundVideoModel.BufferData(BackgroundData[0],BackgroundData[1]);
+    BackgroundVideoModel.TextureBufferData(BackgroundData[2]);
 }
 
 
@@ -421,6 +471,8 @@ function init() {
     try {
         canvas = document.getElementById("webglcanvas");
         gl = canvas.getContext("webgl");
+        CanvasWidth = canvas.scrollWidth;
+        CanvasHeight = canvas.scrollHeight;
         if ( ! gl ) {
             throw "Browser does not support WebGL";
         }
@@ -439,14 +491,22 @@ function init() {
         return;
     }
 
-    spaceball = new TrackballRotator(canvas, draw, 0);
+    video = document.createElement('video');
+    video.setAttribute('autoplay', true);
+    window.vid = video;
 
-    constantUpdate()
-    draw();
-    //createTextureImg();
+    getWebcam();
+    createWebCamTexture();
+
+    stereoCamera = new StereoCamera(5, 0.4, 1, 1, 4, 100);
+
+    spaceball = new TrackballRotator(canvas, draw, 0);
+    createTextureImg();
+    playVideo() ;
+
 }
 
-function constantUpdate() {
+function playVideo() {
     draw();
-    window.requestAnimationFrame(constantUpdate)
-  }
+    window.requestAnimationFrame(playVideo);
+}

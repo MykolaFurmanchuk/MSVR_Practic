@@ -2,7 +2,7 @@
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 
-<title>CGW</title>
+<title>PA1</title>
 <style>
     body {
         background-color: #EEEEEE;
@@ -15,18 +15,76 @@
 <script src="./main.js"></script>
 
 </head>
+
 <body onload="init()">
 
-<h2>A  Surface of Conjugation of Two Coaxial Cylinders of
-    Different Diameters with "Trackball" Mouse Rotation and texture</h2>
+    <h2>A  Surface of Conjugation of Two Coaxial Cylinders of
+        Different Diameters with "Trackball" Mouse Rotation and texture</h2>
+    
+    <p id="message">Drag your mouse on the cube to rotate it.<br>
+    (On a touch screen, you can use your finger.)</p>
 
-<p id="message">Drag your mouse on the cube to rotate it.<br>
-(On a touch screen, you can use your finger.)</p>
+    <div class="container mt-5">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="me-5">
+                    <label for="SeparationValue" class="form-label">Eye separation:</label>
+                    <span class="badge bg-primary" id="SeparationValue_text">0.4</span>
+                    <input type="range" class="form-range" min="-1" max="1" step="0.1" id="SeparationValue" value="0.4">
+                    <label for="Field" class="form-label">Field of View:</label>
+                    <span class="badge bg-primary" id="Field_text">1</span>
+                    <input type="range" class="form-range" min="0.2" max="1.5" step="0.02" id="Field" value="1">
+                    <label for="c_distance" class="form-label">Niar Clipping distance:</label>
+                    <span class="badge bg-primary" id="c_distance_text">4</span>
+                    <input type="range" class="form-range" min="1.5" max="8.1" step="0.33" id="c_distance" value="4">
+                    <label for="co_distance" class="form-label">Convergence distance:</label>
+                    <span class="badge bg-primary" id="co_distance_text">5</span>
+                    <input type="range" class="form-range" min="1" max="15" step="0.1" id="co_distance" value="5">
+                </div>
+            </div>
+            <div id="canvas-holder">
+                    <canvas class="rounded-3" width="600" height="600" id="webglcanvas" style="background-color: red"></canvas>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+<script>
+    var input_sv = document.getElementById("SeparationValue");
+    var input_f = document.getElementById("Field");
+    var input_c = document.getElementById("c_distance");
+    var input_co = document.getElementById("co_distance");
 
 
-<div id="canvas-holder">
-   <canvas width="600" height="600" id="webglcanvas" style="background-color:red"></canvas>
-</div>
+    input_sv.addEventListener("input", function() {
+        SValue = this.value;
+        stereoCamera.mEyeSeparation = SValue;
+        document.getElementById("SeparationValue_text").innerHTML = SValue;
+        draw();
+    }, false);
 
+    input_f.addEventListener("input", function() {
+        Field = this.value;
+        stereoCamera.mFOV = Field;
+        document.getElementById("Field_text").innerHTML = Field;
+        draw();
+    }, false);
 
-</body></html>
+    input_c.addEventListener("input", function() {
+        c_distance = this.value;
+        stereoCamera.mNearClippingDistance = c_distance;
+        document.getElementById("c_distance_text").innerHTML = c_distance;
+        draw();
+    }, false);
+
+    input_co.addEventListener("input", function() {
+        co_distance = this.value;
+        stereoCamera.mConvergence = co_distance;
+        document.getElementById("co_distance_text").innerHTML = co_distance;
+        draw();
+    }, false);
+
+</script>
+
+</html>
