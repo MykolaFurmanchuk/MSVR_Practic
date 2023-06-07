@@ -12,14 +12,21 @@ let pointLocationJ = 0;
 let ScaleValue = 0.0;
 let InputCounter = 0.0;
 let video;
+
 let videoTexture;
+let texture;
+
 let stereoCamera;
 let track;
-let texture;
 let CanvasWidth;
 let CanvasHeight;
 let BackgroundVideoModel;
 let RotationMatrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+let World_X = 0;
+let World_Y = 0;
+let World_Z = 0;
+let Sphere;
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -64,6 +71,19 @@ function Model(name) {
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
+
+    this.BufferDataSphere = function (vertices) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+        this.count = vertices.length / 3;
+    };
+
+    this.DrawSphere = function () {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribVertex);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
+    };
 }
 
 // Constructor
@@ -117,11 +137,14 @@ function draw() {
     stereoCamera.ApplyLeftFrustum();
     gl.colorMask(true, false, false, false);
     DrawSurface();
+    DrawSphere();
 
     gl.clear(gl.DEPTH_BUFFER_BIT);
     stereoCamera.ApplyRightFrustum();
     gl.colorMask(false, true, true, false);
     DrawSurface();
+    DrawSphere();
+
     gl.colorMask(true, true, true, true);
 }
 
@@ -134,6 +157,17 @@ function DrawSurface() {
     surface.Draw();
 }
 
+function DrawSphere() {
+    let modelView = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    let translateToPointZero;
+
+    translateToPointZero = m4.translation(World_X, World_Y, World_Z - 20);
+
+    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, m4.multiply(stereoCamera.mModelViewMatrix, m4.multiply(m4.multiply(stereoCamera.mProjectionMatrix, translateToPointZero), modelView)));
+    gl.uniform1i(shProgram.iTexture, 0);
+
+    Sphere.Draw();
+}
 function CreateBackgroundData()
 {
     let vertexList = [-CanvasWidth / 2.0, -CanvasHeight / 2.0, 0,
@@ -245,6 +279,36 @@ function getDerivativeV(u,v,x,y,z,delta){
     let dz_du = (getZ(u,v+delta) - z) / deg2rad(delta);
     return [dx_du,dy_du,dz_du];
 }
+
+const createSphereSurface = (radius = 0.2) => {
+    const lonStep = 0.5;
+    const latStep = 0.5;
+  
+    const vertexList = Array.from({ length: (Math.PI * 2) / lonStep }, (_, lonIndex) =>
+      Array.from({ length: Math.PI / latStep }, (_, latIndex) => {
+        const lon = lonIndex * lonStep - Math.PI;
+        const lat = latIndex * latStep - Math.PI * 0.5;
+        return [
+          ...getSphereSurfaceData(radius, lon, lat),
+          ...getSphereSurfaceData(radius, lon + lonStep, lat),
+          ...getSphereSurfaceData(radius, lon, lat + latStep),
+          ...getSphereSurfaceData(radius, lon + lonStep, lat + latStep),
+          ...getSphereSurfaceData(radius, lon + lonStep, lat),
+          ...getSphereSurfaceData(radius, lon, lat + latStep),
+        ];
+      }).flat()
+    ).flat();
+  
+    return vertexList;
+  };
+  
+  const getSphereSurfaceData = (radius, lon, lat) => {
+    const x = radius * Math.sin(lon) * Math.cos(lat);
+    const y = radius * Math.sin(lon) * Math.sin(lat);
+    const z = radius * Math.cos(lon);
+    return [x, y, z];
+  };
+
 function CreateSurfaceData()
 {
     let normalsList = [];
@@ -421,7 +485,7 @@ function StereoCamera(
       );
     };
   }
-  
+ 
 
 function createWebCamTexture(){
     videoTexture = gl.createTexture();
@@ -475,6 +539,9 @@ function initGL() {
     let BackgroundData = CreateBackgroundData();
     BackgroundVideoModel.BufferData(BackgroundData[0],BackgroundData[1]);
     BackgroundVideoModel.TextureBufferData(BackgroundData[2]);
+
+    Sphere = new Model("Sphere");
+    Sphere.BufferDataSphere(createSphereSurface());
 }
 
 
@@ -514,7 +581,7 @@ function createProgram(gl, vShader, fShader) {
  * initialization function that will be called when the page has loaded
  */
 function init() {
-    ReadMagnetometer()
+    //ReadMagnetometer()
     let canvas;
     try {
         canvas = document.getElementById("webglcanvas");
