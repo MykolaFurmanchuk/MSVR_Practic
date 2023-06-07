@@ -66,7 +66,6 @@ function Model(name) {
     }
 }
 
-
 // Constructor
 function ShaderProgram(name, program) {
 
@@ -127,8 +126,7 @@ function draw() {
 }
 
 function DrawSurface() {
-
-    let modelView = spaceball.RotationMatrix();
+    let modelView = RotationMatrix;
     let translateToPointZero = m4.translation(0, 0, 0);
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, m4.multiply(stereoCamera.mModelViewMatrix, m4.multiply(m4.multiply(stereoCamera.mProjectionMatrix, translateToPointZero), modelView)));
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -300,18 +298,14 @@ function getPointLocation(){
 
 function ReadMagnetometer() {
 
-    timeStamp = Date.now();
     let sensor = new Magnetometer({
         frequency: 60
     });
     sensor.addEventListener('reading', e => {
-        x = sensor.x
-        y = sensor.y
-        z = sensor.z
-        RotationMatrix = getRotationMatrix(x, y, z)
-        
+        RotationMatrix = getRotationMatrix(sensor.x, sensor.y, sensor.z)
     });
     sensor.start();
+
 
 }
 
