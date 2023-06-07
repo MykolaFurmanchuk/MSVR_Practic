@@ -309,14 +309,12 @@ function ReadMagnetometer() {
 
 }
 
-let degtorad = Math.PI / 180;
 
-function getRotationMatrix(alpha, beta, gamma) {
+function getRotationMatrix(x, y, z) {
+    var _x = -deg2rad(x)
+    var _y = -deg2rad(y)
+    var _z = deg2rad(-z)
 
-    var _x = beta ? beta * degtorad : 0;
-    var _y = gamma ? gamma * degtorad : 0;
-    var _z = alpha ? alpha * degtorad : 0;
-    
     var cX = Math.cos(_x);
     var cY = Math.cos(_y);
     var cZ = Math.cos(_z);
@@ -337,10 +335,11 @@ function getRotationMatrix(alpha, beta, gamma) {
     var m33 = cX * cY;
 
     return [
-        m11, m12, m13,
-        m21, m22, m23,
-        m31, m32, m33
-    ];
+    m11, m12, m13, 0.0,
+    m21, m22, m23, 0.0,
+    m31, m32, m33, 0.0,
+    0.0, 0.0, 0.0, 1.0
+  ];
 
 };
 
