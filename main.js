@@ -122,7 +122,6 @@ function draw() {
                 World_Z * 1000
             );
         }
-
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -589,7 +588,7 @@ function createProgram(gl, vShader, fShader) {
  * initialization function that will be called when the page has loaded
  */
 function init() {
-    //ReadMagnetometer()
+    ReadMagnetometer()
     let canvas;
     try {
         canvas = document.getElementById("webglcanvas");
@@ -638,34 +637,31 @@ function playVideo() {
 let audio = null;
 let audioPanner;
 let audioFilter;
-let audioContext;
+let Context;
 let audioSource;
-
 
 function initAudio() {
   audio = document.getElementById("audio");
 
   audio.addEventListener("pause", () => {
-    audioContext.resume();
+    Context.resume();
   });
 
   audio.addEventListener("play", () => {
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      audioSource = audioContext.createMediaElementSource(audio);
+    if (!Context) {
+      Context = new (window.AudioContext || window.webkitAudioContext)();
+      audioSource = Context.createMediaElementSource(audio);
 
-      audioPanner = audioContext.createPanner();
-      audioFilter = audioContext.createBiquadFilter();
-
+      audioPanner = Context.createPanner();
+      audioFilter = Context.createBiquadFilter();
       audioPanner.panningModel = "HRTF";
       audioPanner.distanceModel = "linear";
       audioFilter.type = "lowpass";
-
       audioSource.connect(audioPanner);
       audioPanner.connect(audioFilter);
-      audioFilter.connect(audioContext.destination);
+      audioFilter.connect(Context.destination);
 
-      audioContext.resume();
+      Context.resume();
     }
   });
 
@@ -676,10 +672,10 @@ function initAudio() {
         console.log('checked')
       audioPanner.disconnect();
       audioPanner.connect(audioFilter);
-      audioFilter.connect(audioContext.destination);
+      audioFilter.connect(Context.destination);
     } else {
       audioPanner.disconnect();
-      audioPanner.connect(audioContext.destination);
+      audioPanner.connect(Context.destination);
     }
   });
 
