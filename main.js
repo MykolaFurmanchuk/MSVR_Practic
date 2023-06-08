@@ -280,7 +280,7 @@ function getDerivativeV(u,v,x,y,z,delta){
     return [dx_du,dy_du,dz_du];
 }
 
-const createSphereSurface = (radius = 0.2) => {
+const createSphereSurface = (radius = 0.1) => {
     const lonStep = 0.5;
     const latStep = 0.5;
   
@@ -617,6 +617,7 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
     createTextureImg();
+    initAudio()
     playVideo() ;
 
 }
@@ -624,4 +625,56 @@ function init() {
 function playVideo() {
     draw();
     window.requestAnimationFrame(playVideo);
+}
+
+let audio = null;
+let audioPanner;
+let audioFilter;
+let audioContext;
+let audioSource;
+
+
+function initAudio() {
+  audio = document.getElementById("audio");
+
+  audio.addEventListener("pause", () => {
+    audioContext.resume();
+  });
+
+  audio.addEventListener("play", () => {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioSource = audioContext.createMediaElementSource(audio);
+
+      audioPanner = audioContext.createPanner();
+      audioFilter = audioContext.createBiquadFilter();
+
+      audioPanner.panningModel = "HRTF";
+      audioPanner.distanceModel = "linear";
+      audioFilter.type = "lowpass";
+
+
+      audioSource.connect(audioPanner);
+      audioPanner.connect(audioFilter);
+      audioFilter.connect(audioContext.destination);
+
+      audioContext.resume();
+    }
+  });
+
+  const filter = document.getElementById("filter_check");
+
+  filter.addEventListener("change", function () {
+    if (filter.checked) {
+        console.log('checked')
+      audioPanner.disconnect();
+      audioPanner.connect(audioFilter);
+      audioFilter.connect(audioContext.destination);
+    } else {
+      audioPanner.disconnect();
+      audioPanner.connect(audioContext.destination);
+    }
+  });
+
+  audio.play();
 }
