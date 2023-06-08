@@ -115,6 +115,14 @@ function ShaderProgram(name, program) {
  */
 
 function draw() {
+    if (audioPanner) {
+            audioPanner.setPosition(
+                World_X * 1000,
+                World_Y * 1000,
+                World_Z * 1000
+            );
+        }
+
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -581,7 +589,7 @@ function createProgram(gl, vShader, fShader) {
  * initialization function that will be called when the page has loaded
  */
 function init() {
-    //ReadMagnetometer()
+    ReadMagnetometer()
     let canvas;
     try {
         canvas = document.getElementById("webglcanvas");
@@ -617,7 +625,7 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
     createTextureImg();
-    initAudio()
+    initAudio();
     playVideo() ;
 
 }
