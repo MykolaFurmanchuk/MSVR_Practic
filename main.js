@@ -589,7 +589,7 @@ function createProgram(gl, vShader, fShader) {
  * initialization function that will be called when the page has loaded
  */
 function init() {
-    ReadMagnetometer()
+    //ReadMagnetometer()
     let canvas;
     try {
         canvas = document.getElementById("webglcanvas");
@@ -660,7 +660,6 @@ function initAudio() {
       audioPanner.panningModel = "HRTF";
       audioPanner.distanceModel = "linear";
       audioFilter.type = "lowpass";
-
 
       audioSource.connect(audioPanner);
       audioPanner.connect(audioFilter);
